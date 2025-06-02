@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { PlayerProvider } from "@/contexts/PlayerContext";
+import Link from "next/link";
+import { Home } from "lucide-react";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,7 +30,105 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <PlayerProvider>
+          <div className="min-h-screen bg-gray-50 flex flex-col">
+            {/* Header */}
+            <header className="bg-white shadow-sm sticky top-0 z-10">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="flex justify-between h-16">
+                  <div className="flex items-center">
+                    {/* <a href="/" className="flex items-center">
+                      <Music className="h-8 w-8 text-indigo-600" />
+                      <span className="ml-2 text-xl font-bold text-gray-900">
+                        SketchTunes
+                      </span>
+                      <span className="ml-1 text-xs text-indigo-600">
+                        (おとすけ)
+                      </span>
+                    </a> */}
+                  </div>
+                </div>
+              </div>
+            </header>
+
+            {/* Main content */}
+            <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+              {children}
+            </main>
+
+            {/* Mobile navigation */}
+            <nav className="bg-white shadow-t border-t border-gray-200 fixed bottom-0 inset-x-0 z-10 sm:hidden">
+              <div className="flex justify-around h-16 items-center">
+                <Link
+                  href="/"
+                  className="flex flex-col items-center justify-center w-full h-full"
+                >
+                  <Home className="h-5 w-5 text-gray-500" />
+                  <span className="text-xs mt-1">Home</span>
+                </Link>
+                {/* <a
+                  href="/explore"
+                  className="flex flex-col items-center justify-center w-full h-full"
+                >
+                  <Search className="h-5 w-5 text-gray-500" />
+                  <span className="text-xs mt-1">Explore</span>
+                </a>
+                <a
+                  href="/upload"
+                  className="flex flex-col items-center justify-center w-full h-full"
+                >
+                  <PlusSquare className="h-5 w-5 text-gray-500" />
+                  <span className="text-xs mt-1">Upload</span>
+                </a>
+                <a
+                  href="/profile"
+                  className="flex flex-col items-center justify-center w-full h-full"
+                >
+                  <User className="h-5 w-5 text-gray-500" />
+                  <span className="text-xs mt-1">Profile</span>
+                </a> */}
+              </div>
+            </nav>
+
+            {/* Sidebar for larger screens */}
+            <nav className="hidden sm:block fixed left-0 top-16 bottom-0 w-64 bg-white shadow-sm overflow-y-auto">
+              <div className="px-4 py-6">
+                <ul className="space-y-2">
+                  <li>
+                    <Link
+                      href="/"
+                      className="flex items-center px-4 py-3 rounded-md text-gray-700 hover:bg-gray-100"
+                    >
+                      <Home className="h-5 w-5 mr-3" />
+                      <span className="font-medium">Home</span>
+                    </Link>
+                  </li>
+                  {/* <li>
+                    <a
+                      href="/explore"
+                      className="flex items-center px-4 py-3 rounded-md text-gray-700 hover:bg-gray-100"
+                    >
+                      <Search className="h-5 w-5 mr-3" />
+                      <span className="font-medium">Explore</span>
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href="/upload"
+                      className="flex items-center px-4 py-3 rounded-md text-gray-700 hover:bg-gray-100"
+                    >
+                      <PlusSquare className="h-5 w-5 mr-3" />
+                      <span className="font-medium">Upload Track</span>
+                    </a>
+                  </li> */}
+                </ul>
+              </div>
+            </nav>
+
+            {/* Adjust main content padding for sidebar on larger screens */}
+            <div className="sm:pl-64"></div>
+          </div>
+        </PlayerProvider>
       </body>
     </html>
   );
