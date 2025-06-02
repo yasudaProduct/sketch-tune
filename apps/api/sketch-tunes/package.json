@@ -1,0 +1,12 @@
+{
+  "name": "sketch-tunes",
+  "scripts": {
+    "dev": "bun run --hot src/index.ts"
+  },
+  "dependencies": {
+    "hono": "^4.7.11"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}
