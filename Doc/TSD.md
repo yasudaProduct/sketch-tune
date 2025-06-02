@@ -1433,3 +1433,608 @@ npm run db:migrate:prod
 - [ ] S3ストレージ使用量
 
 この技術仕様書により、SketchTunesの開発・運用に必要な技術的詳細が完全に定義されました。
+
+## 12. モノリポ開発環境
+
+### 12.1 モノリポ構成概要
+
+SketchTunesプロジェクトでは、**pnpm workspaces**と**Turborepo**を使用したモノリポ構成を採用します。
+
+#### 12.1.1 技術選択理由
+- **pnpm**: 高速インストール、効率的なディスク使用量
+- **Turborepo**: インクリメンタルビルド、並列実行、キャッシュ最適化
+- **共有ライブラリ**: 型定義、ユーティリティ、UIコンポーネントの統一
+
+### 12.2 ディレクトリ構造
+
+```
+sketch-tunes/
+├── apps/                           # アプリケーション
+│   ├── web/                        # Next.js フロントエンド
+│   │   ├── src/
+│   │   │   ├── app/               # App Router
+│   │   │   ├── components/        # ページ固有コンポーネント
+│   │   │   ├── hooks/             # カスタムフック
+│   │   │   └── lib/               # アプリ固有ユーティリティ
+│   │   ├── public/
+│   │   ├── package.json
+│   │   ├── next.config.js
+│   │   └── tailwind.config.js
+│   │
+│   ├── api/                        # Hono API サーバー
+│   │   ├── src/
+│   │   │   ├── routes/            # API ルート
+│   │   │   ├── middleware/        # ミドルウェア
+│   │   │   ├── services/          # ビジネスロジック
+│   │   │   ├── repositories/      # データアクセス層
+│   │   │   └── index.ts           # エントリーポイント
+│   │   ├── package.json
+│   │   └── tsconfig.json
+│   │
+│   └── admin/                      # 管理画面 (将来拡張)
+│       ├── src/
+│       └── package.json
+│
+├── packages/                       # 共有パッケージ
+│   ├── shared-types/               # 型定義
+│   │   ├── src/
+│   │   │   ├── api.ts             # API型定義
+│   │   │   ├── user.ts            # ユーザー型
+│   │   │   ├── track.ts           # 楽曲型
+│   │   │   └── index.ts
+│   │   ├── package.json
+│   │   └── tsconfig.json
+│   │
+│   ├── ui-components/              # 共有UIコンポーネント
+│   │   ├── src/
+│   │   │   ├── components/
+│   │   │   │   ├── Button/
+│   │   │   │   ├── AudioPlayer/
+│   │   │   │   ├── WaveformVisualizer/
+│   │   │   │   └── index.ts
+│   │   │   ├── hooks/             # 共有フック
+│   │   │   └── utils/             # UI関連ユーティリティ
+│   │   ├── package.json
+│   │   ├── tsconfig.json
+│   │   └── tailwind.config.js
+│   │
+│   ├── database/                   # データベース関連
+│   │   ├── src/
+│   │   │   ├── migrations/
+│   │   │   ├── schemas/
+│   │   │   ├── seeds/
+│   │   │   └── client.ts
+│   │   ├── package.json
+│   │   └── drizzle.config.ts
+│   │
+│   ├── audio-utils/                # 音楽処理ユーティリティ
+│   │   ├── src/
+│   │   │   ├── waveform/
+│   │   │   ├── processing/
+│   │   │   └── streaming/
+│   │   └── package.json
+│   │
+│   ├── api-client/                 # API クライアント
+│   │   ├── src/
+│   │   │   ├── client.ts
+│   │   │   ├── hooks/             # React Query フック
+│   │   │   └── endpoints/
+│   │   └── package.json
+│   │
+│   └── config/                     # 共有設定
+│       ├── eslint/                # ESLint設定
+│       ├── typescript/            # TypeScript設定
+│       ├── tailwind/              # Tailwind設定
+│       └── jest/                  # Jest設定
+│
+├── tools/                          # 開発ツール
+│   ├── scripts/                    # 開発スクリプト
+│   └── docker/                     # Docker設定
+│
+├── docs/                           # ドキュメント
+│   ├── api/                        # API仕様書
+│   ├── components/                 # コンポーネント仕様
+│   └── deployment/                 # デプロイ手順
+│
+├── package.json                    # ルート package.json
+├── pnpm-workspace.yaml            # pnpm workspace設定
+├── turbo.json                      # Turborepo設定
+├── docker-compose.yml             # 開発環境Docker
+├── .env.example                    # 環境変数テンプレート
+└── README.md
+```
+
+### 12.3 ルート設定ファイル
+
+#### 12.3.1 package.json
+```json
+{
+  "name": "sketchtunes-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "type-check": "turbo run type-check",
+    "clean": "turbo run clean",
+    "db:migrate": "turbo run db:migrate",
+    "db:seed": "turbo run db:seed",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down"
+  },
+  "devDependencies": {
+    "@turbo/gen": "^1.10.0",
+    "turbo": "^1.10.0",
+    "typescript": "^5.3.0",
+    "@types/node": "^20.0.0",
+    "eslint": "^8.50.0",
+    "prettier": "^3.0.0"
+  },
+  "packageManager": "pnpm@8.10.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}
+```
+
+#### 12.3.2 pnpm-workspace.yaml
+```yaml
+packages:
+  - 'apps/*'
+  - 'packages/*'
+  - 'tools/*'
+```
+
+#### 12.3.3 turbo.json
+```json
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": ["**/.env.*local"],
+  "pipeline": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "dist/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "test": {
+      "dependsOn": ["build"],
+      "outputs": ["coverage/**"]
+    },
+    "lint": {
+      "dependsOn": ["^lint"]
+    },
+    "type-check": {
+      "dependsOn": ["^type-check"]
+    },
+    "clean": {
+      "cache": false
+    },
+    "db:migrate": {
+      "cache": false
+    },
+    "db:seed": {
+      "cache": false
+    }
+  }
+}
+```
+
+### 12.4 共有パッケージ設計
+
+#### 12.4.1 shared-types パッケージ
+```typescript
+// packages/shared-types/src/user.ts
+export interface User {
+  id: string;
+  username: string;
+  email: string;
+  displayName?: string;
+  bio?: string;
+  avatarUrl?: string;
+  skillLevel: 'beginner' | 'intermediate' | 'advanced';
+  preferredDaw?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// packages/shared-types/src/track.ts
+export interface Track {
+  id: string;
+  userId: string;
+  title: string;
+  description?: string;
+  fileUrl: string;
+  waveformData?: number[];
+  duration: number;
+  bpm?: number;
+  keySignature?: string;
+  stage: 'rough' | 'demo' | 'wip' | 'experiment' | 'complete';
+  genre?: string;
+  dawUsed?: string;
+  creationTime?: number;
+  privacy: 'public' | 'followers' | 'private';
+  allowComments: boolean;
+  allowRemixes: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// packages/shared-types/src/api.ts
+export interface ApiResponse<T> {
+  data: T;
+  message?: string;
+  success: boolean;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+```
+
+#### 12.4.2 ui-components パッケージ
+```typescript
+// packages/ui-components/src/components/AudioPlayer/AudioPlayer.tsx
+import React from 'react';
+import { Track } from '@sketchtunes/shared-types';
+
+interface AudioPlayerProps {
+  track: Track;
+  onTimeUpdate?: (time: number) => void;
+  onEnded?: () => void;
+  className?: string;
+}
+
+export const AudioPlayer: React.FC<AudioPlayerProps> = ({
+  track,
+  onTimeUpdate,
+  onEnded,
+  className
+}) => {
+  // Audio player implementation
+  return (
+    <div className={`audio-player ${className}`}>
+      {/* Player UI */}
+    </div>
+  );
+};
+```
+
+#### 12.4.3 api-client パッケージ
+```typescript
+// packages/api-client/src/client.ts
+import { hc } from 'hono/client';
+import type { ApiType } from '@sketchtunes/api/src/types';
+
+export const apiClient = hc<ApiType>('/api');
+
+// packages/api-client/src/hooks/useTracks.ts
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '../client';
+import type { Track } from '@sketchtunes/shared-types';
+
+export const useTracks = (params?: { page?: number; limit?: number }) => {
+  return useQuery({
+    queryKey: ['tracks', params],
+    queryFn: async () => {
+      const response = await apiClient.tracks.$get({
+        query: params
+      });
+      return response.json();
+    }
+  });
+};
+
+export const useUploadTrack = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (formData: FormData) => {
+      const response = await apiClient.tracks.$post({
+        form: formData
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tracks'] });
+    }
+  });
+};
+```
+
+### 12.5 開発ワークフロー
+
+#### 12.5.1 基本コマンド
+```bash
+# 開発環境起動
+pnpm run dev
+
+# 特定のアプリのみ起動
+pnpm run dev --filter=web
+
+# ビルド（全体）
+pnpm run build
+
+# テスト実行
+pnpm run test
+
+# 型チェック
+pnpm run type-check
+
+# リント
+pnpm run lint
+
+# 依存関係追加（特定パッケージ）
+pnpm add react --filter=web
+pnpm add @sketchtunes/shared-types --filter=api
+```
+
+#### 12.5.2 開発サーバー起動設定
+```typescript
+// apps/web/package.json
+{
+  "name": "@sketchtunes/web",
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@sketchtunes/shared-types": "workspace:*",
+    "@sketchtunes/ui-components": "workspace:*",
+    "@sketchtunes/api-client": "workspace:*"
+  }
+}
+
+// apps/api/package.json
+{
+  "name": "@sketchtunes/api",
+  "scripts": {
+    "dev": "tsx watch src/index.ts --port 3001",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "vitest",
+    "lint": "eslint src/",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@sketchtunes/shared-types": "workspace:*",
+    "@sketchtunes/database": "workspace:*"
+  }
+}
+```
+
+### 12.6 Docker開発環境
+
+#### 12.6.1 docker-compose.yml
+```yaml
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: sketchtunes_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  web:
+    build:
+      context: .
+      dockerfile: ./apps/web/Dockerfile.dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/web/node_modules
+    environment:
+      - NODE_ENV=development
+    depends_on:
+      - api
+
+  api:
+    build:
+      context: .
+      dockerfile: ./apps/api/Dockerfile.dev
+    ports:
+      - "3001:3001"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/api/node_modules
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/sketchtunes_dev
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - postgres
+      - redis
+
+volumes:
+  postgres_data:
+  redis_data:
+```
+
+#### 12.6.2 開発用Dockerfile
+```dockerfile
+# apps/web/Dockerfile.dev
+FROM node:20-alpine
+
+RUN npm install -g pnpm@8.10.0
+
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/web/package.json ./apps/web/
+COPY packages/*/package.json ./packages/*/
+
+RUN pnpm install --frozen-lockfile
+
+EXPOSE 3000
+
+CMD ["pnpm", "run", "dev", "--filter=web"]
+```
+
+### 12.7 CI/CD設定
+
+#### 12.7.1 GitHub Actions (モノリポ対応)
+```yaml
+# .github/workflows/ci.yml
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      web: ${{ steps.changes.outputs.web }}
+      api: ${{ steps.changes.outputs.api }}
+      packages: ${{ steps.changes.outputs.packages }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            web:
+              - 'apps/web/**'
+              - 'packages/**'
+            api:
+              - 'apps/api/**'
+              - 'packages/**'
+            packages:
+              - 'packages/**'
+
+  test:
+    needs: changes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8.10.0
+          
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Type check
+        run: pnpm run type-check
+      
+      - name: Lint
+        run: pnpm run lint
+      
+      - name: Test
+        run: pnpm run test
+      
+      - name: Build
+        run: pnpm run build
+
+  deploy-web:
+    needs: [changes, test]
+    if: needs.changes.outputs.web == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy Frontend
+        run: echo "Deploy web app"
+
+  deploy-api:
+    needs: [changes, test]
+    if: needs.changes.outputs.api == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy API
+        run: echo "Deploy API"
+```
+
+### 12.8 開発者体験の向上
+
+#### 12.8.1 VS Code設定
+```json
+// .vscode/settings.json
+{
+  "typescript.preferences.includePackageJsonAutoImports": "on",
+  "typescript.suggest.autoImports": true,
+  "eslint.workingDirectories": [
+    "apps/web",
+    "apps/api",
+    "packages/*"
+  ],
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/.next": true
+  }
+}
+
+// .vscode/extensions.json
+{
+  "recommendations": [
+    "bradlc.vscode-tailwindcss",
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "ms-vscode.vscode-typescript-next"
+  ]
+}
+```
+
+#### 12.8.2 共有ESLint設定
+```javascript
+// packages/config/eslint/base.js
+module.exports = {
+  extends: [
+    'eslint:recommended',
+    '@typescript-eslint/recommended',
+    'prettier'
+  ],
+  plugins: ['@typescript-eslint'],
+  parser: '@typescript-eslint/parser',
+  rules: {
+    '@typescript-eslint/no-unused-vars': 'error',
+    '@typescript-eslint/no-explicit-any': 'warn'
+  }
+};
+
+// apps/web/.eslintrc.js
+module.exports = {
+  extends: ['@sketchtunes/eslint-config/next'],
+  root: true
+};
+```
+
+この モノリポ構成により、効率的な開発環境と優れたDX（Developer Experience）を実現できます。
