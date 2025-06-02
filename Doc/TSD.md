@@ -3,8 +3,8 @@
 ## 1. システム概要
 
 ### 1.1 アーキテクチャパターン
-- **マイクロサービスアーキテクチャ** (将来的な拡張を考慮)
-- **tRPC** (柔軟なデータ取得)
+- **マイクロサービスアーキテクチャ**
+- **tRPC**
 - **CDN** + **エッジキャッシング** (音楽ファイル配信最適化)
 
 ### 1.2 システム全体構成図
@@ -814,50 +814,43 @@ app.post('/api/tracks', apiLimits.upload, requireAuth, async (c) => {
 
 ## 4. インフラ・DevOps
 
-### 4.1 AWS構成
-```yaml
-# Terraform設定例
-resource "aws_ecs_cluster" "sketchtunes" {
-  name = "sketchtunes-cluster"
-  
-  setting {
-    name  = "containerInsights"
-    value = "enabled"
-  }
-}
+### 4.1 Cloudflareシステム構成図
+[Cloudflare Pages] ←→ [Cloudflare Workers] ←→ [Cloudflare Services]
+     (Frontend)          (Hono API)              ├── D1 Database
+                             ↕                   ├── R2 Storage
+                    [Cloudflare Services]        ├── KV Storage
+                         ├── Durable Objects    ├── Stream (音楽)
+                         ├── WebSockets         └── Analytics
+                         └── Queues
 
-resource "aws_s3_bucket" "audio_files" {
-  bucket = "sketchtunes-audio-files"
-  
-  cors_rule {
-    allowed_headers = ["*"]
-    allowed_methods = ["GET", "PUT", "POST"]
-    allowed_origins = ["https://sketchtunes.com"]
-    max_age_seconds = 3000
-  }
-}
+### 4.2 wrangler.toml
+name = "sketchtunes-api"
+main = "src/index.ts"
+``` 
+compatibility_date = "2024-01-01"
+node_compat = true
 
-resource "aws_cloudfront_distribution" "cdn" {
-  origin {
-    domain_name = aws_s3_bucket.audio_files.regional_domain_name
-    origin_id   = "S3-sketchtunes-audio"
-    
-    s3_origin_config {
-      origin_access_identity = aws_cloudfront_origin_access_identity.oai.cloudfront_access_identity_path
-    }
-  }
-  
-  # 音楽ファイル用キャッシュ設定
-  default_cache_behavior {
-    target_origin_id         = "S3-sketchtunes-audio"
-    viewer_protocol_policy   = "redirect-to-https"
-    cached_methods          = ["GET", "HEAD", "OPTIONS"]
-    allowed_methods         = ["GET", "HEAD", "OPTIONS"]
-    
-    cache_policy_id = aws_cloudfront_cache_policy.audio_cache.id
-  }
-}
-```
+[env.production]
+vars = { ENVIRONMENT = "production" }
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "sketchtunes-db"
+database_id = "your-d1-database-id"
+
+[[env.production.r2_buckets]]
+binding = "AUDIO_BUCKET"
+bucket_name = "sketchtunes-audio"
+
+[[env.production.kv_namespaces]]
+binding = "CACHE_KV"
+id = "your-kv-namespace-id"
+
+[env.production.durable_objects]
+bindings = [
+  { name = "REALTIME_SESSIONS", class_name = "RealtimeSession" }
+]
+``` 
 
 ### 4.2 CI/CDパイプライン
 ```yaml
