@@ -4,7 +4,7 @@
 
 ### 1.1 アーキテクチャパターン
 - **マイクロサービスアーキテクチャ** (将来的な拡張を考慮)
-- **RESTful API** + **GraphQL** (柔軟なデータ取得)
+- **tRPC** (柔軟なデータ取得)
 - **CDN** + **エッジキャッシング** (音楽ファイル配信最適化)
 
 ### 1.2 システム全体構成図
@@ -25,10 +25,10 @@
 ## 2. フロントエンド技術仕様
 
 ### 2.1 基本技術スタック
-- **React 18** (並行機能活用)
-- **TypeScript 5.0+** (型安全性確保)
-- **Next.js 14** (App Router, SSR/SSG)
-- **Tailwind CSS 3.4** (ユーティリティファースト)
+- **React 19**
+- **TypeScript 5.8**
+- **Next.js 15**
+- **Tailwind CSS 4.1.5**
 
 ### 2.2 状態管理
 - **Zustand** (軽量な状態管理)
@@ -139,13 +139,390 @@ class WaveformVisualizer {
 ## 3. バックエンド技術仕様
 
 ### 3.1 API設計
-- **Node.js 20** + **Express.js** (高パフォーマンス)
+- **Node.js 20** + **Hono** (高パフォーマンス・軽量フレームワーク)
 - **GraphQL** (Apollo Server) + **REST API** (ハイブリッド)
 - **JWT認証** + **Refresh Token** (セキュリティ)
 
-### 3.2 データベース設計
+### 3.2 Hono アプリケーション設定
+```typescript
+import { Hono } from 'hono';
+import { cors } from 'hono/cors';
+import { logger } from 'hono/logger';
+import { jwt } from 'hono/jwt';
+import { prettyJSON } from 'hono/pretty-json';
+import { secureHeaders } from 'hono/secure-headers';
 
-#### 3.2.1 PostgreSQL スキーマ
+// 型定義
+type Bindings = {
+  DATABASE_URL: string;
+  JWT_SECRET: string;
+  S3_BUCKET: string;
+  REDIS_URL: string;
+};
+
+type Variables = {
+  user: {
+    id: string;
+    email: string;
+  };
+};
+
+const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
+
+// ミドルウェア設定
+app.use('*', logger());
+app.use('*', secureHeaders());
+app.use('*', prettyJSON());
+app.use(
+  '/api/*',
+  cors({
+    origin: ['http://localhost:3000', 'https://sketchtunes.com'],
+    allowHeaders: ['Content-Type', 'Authorization'],
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    credentials: true,
+  })
+);
+
+// JWT認証ミドルウェア
+app.use('/api/protected/*', async (c, next) => {
+  const jwtMiddleware = jwt({
+    secret: c.env.JWT_SECRET,
+  });
+  return jwtMiddleware(c, next);
+});
+
+// APIルーティング
+app.route('/api/auth', authRoutes);
+app.route('/api/tracks', trackRoutes);
+app.route('/api/users', userRoutes);
+app.route('/api/comments', commentRoutes);
+
+export default app;
+```
+
+### 3.3 認証API実装
+```typescript
+import { Hono } from 'hono';
+import { sign, verify } from 'hono/jwt';
+import { setCookie, getCookie } from 'hono/cookie';
+import bcrypt from 'bcryptjs';
+
+const auth = new Hono();
+
+// ユーザー登録
+auth.post('/register', async (c) => {
+  try {
+    const { email, username, password } = await c.req.json();
+    
+    // バリデーション
+    if (!email || !username || !password) {
+      return c.json({ error: 'Missing required fields' }, 400);
+    }
+    
+    // パスワードハッシュ化
+    const hashedPassword = await bcrypt.hash(password, 12);
+    
+    // ユーザー作成（DB操作）
+    const user = await createUser({
+      email,
+      username,
+      password: hashedPassword
+    });
+    
+    // JWT生成
+    const payload = {
+      userId: user.id,
+      email: user.email,
+      exp: Math.floor(Date.now() / 1000) + 60 * 15, // 15分
+    };
+    
+    const token = await sign(payload, c.env.JWT_SECRET);
+    
+    // リフレッシュトークン生成
+    const refreshToken = await sign(
+      { userId: user.id, type: 'refresh' },
+      c.env.JWT_SECRET,
+      'HS256'
+    );
+    
+    // HTTPOnlyクッキーにリフレッシュトークン設定
+    setCookie(c, 'refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'Strict',
+      maxAge: 60 * 60 * 24 * 7, // 7日
+    });
+    
+    return c.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+      },
+      accessToken: token,
+    });
+  } catch (error) {
+    return c.json({ error: 'Registration failed' }, 500);
+  }
+});
+
+// ログイン
+auth.post('/login', async (c) => {
+  try {
+    const { email, password } = await c.req.json();
+    
+    // ユーザー検索
+    const user = await findUserByEmail(email);
+    if (!user) {
+      return c.json({ error: 'Invalid credentials' }, 401);
+    }
+    
+    // パスワード検証
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    if (!isValidPassword) {
+      return c.json({ error: 'Invalid credentials' }, 401);
+    }
+    
+    // JWT生成
+    const payload = {
+      userId: user.id,
+      email: user.email,
+      exp: Math.floor(Date.now() / 1000) + 60 * 15,
+    };
+    
+    const token = await sign(payload, c.env.JWT_SECRET);
+    
+    return c.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+      },
+      accessToken: token,
+    });
+  } catch (error) {
+    return c.json({ error: 'Login failed' }, 500);
+  }
+});
+
+export { auth as authRoutes };
+```
+
+### 3.4 楽曲API実装
+```typescript
+import { Hono } from 'hono';
+import { streamText } from 'hono/streaming';
+
+const tracks = new Hono();
+
+// 楽曲一覧取得
+tracks.get('/', async (c) => {
+  try {
+    const { page = '1', limit = '20', stage, genre } = c.req.query();
+    
+    const offset = (Number(page) - 1) * Number(limit);
+    
+    // フィルター条件構築
+    const filters: any = {};
+    if (stage) filters.stage = stage;
+    if (genre) filters.genre = genre;
+    
+    const tracks = await getTracksList({
+      offset,
+      limit: Number(limit),
+      filters,
+    });
+    
+    return c.json({
+      tracks,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total: tracks.length,
+      },
+    });
+  } catch (error) {
+    return c.json({ error: 'Failed to fetch tracks' }, 500);
+  }
+});
+
+// 楽曲詳細取得
+tracks.get('/:id', async (c) => {
+  try {
+    const trackId = c.req.param('id');
+    
+    const track = await getTrackById(trackId);
+    if (!track) {
+      return c.json({ error: 'Track not found' }, 404);
+    }
+    
+    // 再生履歴記録
+    await recordPlayHistory(trackId, c.var.user?.id);
+    
+    return c.json({ track });
+  } catch (error) {
+    return c.json({ error: 'Failed to fetch track' }, 500);
+  }
+});
+
+// 楽曲アップロード
+tracks.post('/', async (c) => {
+  try {
+    const formData = await c.req.formData();
+    const file = formData.get('audio') as File;
+    const title = formData.get('title') as string;
+    const description = formData.get('description') as string;
+    const stage = formData.get('stage') as string;
+    const genre = formData.get('genre') as string;
+    
+    if (!file || !title) {
+      return c.json({ error: 'Audio file and title are required' }, 400);
+    }
+    
+    // ファイル検証
+    await validateAudioFile(file);
+    
+    // 音楽ファイル処理
+    const processor = new AudioFileProcessor();
+    const processedFile = await processor.processUpload(file);
+    
+    // データベース保存
+    const track = await createTrack({
+      userId: c.var.user.id,
+      title,
+      description,
+      stage,
+      genre,
+      fileUrl: processedFile.url,
+      duration: processedFile.duration,
+      waveformData: processedFile.waveform,
+    });
+    
+    return c.json({ track }, 201);
+  } catch (error) {
+    return c.json({ error: 'Upload failed' }, 500);
+  }
+});
+
+// 楽曲ストリーミング
+tracks.get('/:id/stream', async (c) => {
+  try {
+    const trackId = c.req.param('id');
+    const quality = c.req.query('quality') || 'medium';
+    
+    const track = await getTrackById(trackId);
+    if (!track) {
+      return c.json({ error: 'Track not found' }, 404);
+    }
+    
+    // CDN URLを生成
+    const optimizer = new AudioCDNOptimizer();
+    const streamUrl = optimizer.generateStreamingUrl(trackId, quality as any);
+    
+    // リダイレクトまたはプロキシ
+    return c.redirect(streamUrl, 302);
+  } catch (error) {
+    return c.json({ error: 'Streaming failed' }, 500);
+  }
+});
+
+export { tracks as trackRoutes };
+```
+
+### 3.5 WebSocket実装（Hono + WebSocket）
+```typescript
+import { Hono } from 'hono';
+import { upgradeWebSocket } from 'hono/ws';
+
+const websocket = new Hono();
+
+interface WebSocketMessage {
+  type: 'join-track' | 'new-comment' | 'sync-playback';
+  data: any;
+}
+
+const connectedUsers = new Map<string, WebSocket>();
+const trackRooms = new Map<string, Set<string>>();
+
+websocket.get(
+  '/ws',
+  upgradeWebSocket((c) => {
+    return {
+      onOpen: (evt, ws) => {
+        console.log('WebSocket connection opened');
+      },
+      
+      onMessage: (evt, ws) => {
+        try {
+          const message: WebSocketMessage = JSON.parse(evt.data.toString());
+          
+          switch (message.type) {
+            case 'join-track':
+              handleJoinTrack(ws, message.data.trackId, message.data.userId);
+              break;
+              
+            case 'new-comment':
+              handleNewComment(ws, message.data);
+              break;
+              
+            case 'sync-playback':
+              handleSyncPlayback(ws, message.data);
+              break;
+          }
+        } catch (error) {
+          console.error('WebSocket message error:', error);
+        }
+      },
+      
+      onClose: (evt, ws) => {
+        console.log('WebSocket connection closed');
+        // クリーンアップ処理
+        cleanupUserConnection(ws);
+      },
+    };
+  })
+);
+
+function handleJoinTrack(ws: WebSocket, trackId: string, userId: string) {
+  // ユーザーをトラックルームに追加
+  if (!trackRooms.has(trackId)) {
+    trackRooms.set(trackId, new Set());
+  }
+  trackRooms.get(trackId)!.add(userId);
+  connectedUsers.set(userId, ws);
+  
+  // 参加通知
+  ws.send(JSON.stringify({
+    type: 'joined-track',
+    data: { trackId, success: true }
+  }));
+}
+
+function handleNewComment(ws: WebSocket, commentData: any) {
+  // コメント保存
+  saveComment(commentData).then(comment => {
+    // 同じトラックの他のユーザーに通知
+    const trackUsers = trackRooms.get(commentData.trackId);
+    if (trackUsers) {
+      trackUsers.forEach(userId => {
+        const userWs = connectedUsers.get(userId);
+        if (userWs && userWs !== ws) {
+          userWs.send(JSON.stringify({
+            type: 'comment-added',
+            data: comment
+          }));
+        }
+      });
+    }
+  });
+}
+
+export { websocket as websocketRoutes };
+```
+
+### 3.6 データベース設計
+
+#### 3.6.1 PostgreSQL スキーマ
 ```sql
 -- ユーザーテーブル
 CREATE TABLE users (
@@ -228,7 +605,7 @@ CREATE TABLE track_tags (
 );
 ```
 
-#### 3.2.2 Redis活用
+#### 3.6.2 Redis活用
 ```typescript
 // Redis キャッシュ設計
 interface CacheKeys {
@@ -254,18 +631,23 @@ class CacheManager {
 }
 ```
 
-### 3.3 ファイル処理システム
+### 3.7 ファイル処理システム
 
-#### 3.3.1 音楽ファイルアップロード
+#### 3.7.1 音楽ファイルアップロード
 ```typescript
-// マルチパート音楽ファイル処理
-import multer from 'multer';
+// マルチパート音楽ファイル処理（Hono対応）
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
 class AudioFileProcessor {
   private s3Client: S3Client;
   
-  async processUpload(file: Express.Multer.File): Promise<{
+  constructor() {
+    this.s3Client = new S3Client({
+      region: 'ap-northeast-1',
+    });
+  }
+  
+  async processUpload(file: File): Promise<{
     url: string;
     duration: number;
     waveform: number[];
@@ -273,20 +655,52 @@ class AudioFileProcessor {
     // 1. ファイル検証
     await this.validateAudioFile(file);
     
-    // 2. 波形データ生成
-    const waveform = await this.generateWaveform(file.buffer);
+    // 2. ファイルをArrayBufferに変換
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
     
-    // 3. 音楽メタデータ抽出
-    const metadata = await this.extractMetadata(file.buffer);
+    // 3. 波形データ生成
+    const waveform = await this.generateWaveform(buffer);
     
-    // 4. S3アップロード
-    const url = await this.uploadToS3(file);
+    // 4. 音楽メタデータ抽出
+    const metadata = await this.extractMetadata(buffer);
+    
+    // 5. S3アップロード
+    const url = await this.uploadToS3(file.name, buffer);
     
     return {
       url,
       duration: metadata.duration,
       waveform
     };
+  }
+  
+  private async validateAudioFile(file: File): Promise<void> {
+    // ファイル拡張子チェック
+    const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4'];
+    
+    if (!allowedTypes.includes(file.type)) {
+      throw new Error('Unsupported file format');
+    }
+    
+    // ファイルサイズチェック（50MB制限）
+    if (file.size > 50 * 1024 * 1024) {
+      throw new Error('File too large');
+    }
+  }
+  
+  private async uploadToS3(fileName: string, buffer: Buffer): Promise<string> {
+    const key = `audio/${Date.now()}-${fileName}`;
+    
+    const command = new PutObjectCommand({
+      Bucket: 'sketchtunes-audio-files',
+      Key: key,
+      Body: buffer,
+      ContentType: 'audio/mpeg',
+    });
+    
+    await this.s3Client.send(command);
+    return `https://sketchtunes-audio-files.s3.amazonaws.com/${key}`;
   }
   
   private async generateWaveform(buffer: Buffer): Promise<number[]> {
@@ -305,7 +719,7 @@ class AudioFileProcessor {
 }
 ```
 
-#### 3.3.2 音楽ストリーミング最適化
+#### 3.7.2 音楽ストリーミング最適化
 ```typescript
 // 適応的ビットレート配信
 class StreamingOptimizer {
@@ -340,44 +754,62 @@ class StreamingOptimizer {
 }
 ```
 
-### 3.4 リアルタイム機能
-
-#### 3.4.1 WebSocket実装
+### 3.8 セキュリティミドルウェア
 ```typescript
-// Socket.IO実装
-import { Server } from 'socket.io';
+// Honoセキュリティミドルウェア
+import { Hono } from 'hono';
+import { rateLimiter } from 'hono/rate-limiter';
 
-class RealtimeService {
-  private io: Server;
+// レート制限ミドルウェア
+const createRateLimit = (windowMs: number, max: number) => {
+  return rateLimiter({
+    windowMs,
+    limit: max,
+    message: 'Too many requests',
+    standardHeaders: 'draft-6',
+    legacyHeaders: false,
+  });
+};
+
+// API別レート制限設定
+const apiLimits = {
+  upload: createRateLimit(60 * 60 * 1000, 5),    // 1時間に5回
+  comment: createRateLimit(60 * 1000, 10),        // 1分間に10回
+  general: createRateLimit(15 * 60 * 1000, 100),  // 15分間に100回
+};
+
+// セキュリティヘッダー設定
+app.use('*', async (c, next) => {
+  c.header('X-Content-Type-Options', 'nosniff');
+  c.header('X-Frame-Options', 'DENY');
+  c.header('X-XSS-Protection', '1; mode=block');
+  c.header('Referrer-Policy', 'strict-origin-when-cross-origin');
   
-  setupRealtimeFeatures(): void {
-    this.io.on('connection', (socket) => {
-      // ユーザー接続時
-      socket.on('join-track', (trackId: string) => {
-        socket.join(`track:${trackId}`);
-      });
-      
-      // リアルタイムコメント
-      socket.on('new-comment', async (data: {
-        trackId: string;
-        comment: string;
-        timestamp: number;
-      }) => {
-        const comment = await this.saveComment(data);
-        this.io.to(`track:${data.trackId}`).emit('comment-added', comment);
-      });
-      
-      // 同期再生（将来機能）
-      socket.on('sync-playback', (data: {
-        trackId: string;
-        currentTime: number;
-        isPlaying: boolean;
-      }) => {
-        socket.to(`track:${data.trackId}`).emit('playback-sync', data);
-      });
-    });
+  await next();
+});
+
+// 認証済みユーザーの検証ミドルウェア
+const requireAuth = async (c: Context, next: Next) => {
+  const token = c.req.header('Authorization')?.replace('Bearer ', '');
+  
+  if (!token) {
+    return c.json({ error: 'Authentication required' }, 401);
   }
-}
+  
+  try {
+    const payload = await verify(token, c.env.JWT_SECRET);
+    c.set('user', payload);
+    await next();
+  } catch (error) {
+    return c.json({ error: 'Invalid token' }, 401);
+  }
+};
+
+// 使用例
+app.use('/api/tracks', apiLimits.general);
+app.post('/api/tracks', apiLimits.upload, requireAuth, async (c) => {
+  // 楽曲アップロード処理
+});
 ```
 
 ## 4. インフラ・DevOps
@@ -478,35 +910,42 @@ jobs:
 
 ## 5. セキュリティ仕様
 
-### 5.1 認証・認可
+### 5.1 認証・認可（Hono対応）
 ```typescript
-// JWT + Refresh Token実装
+// JWT + Refresh Token実装（Hono）
+import { sign, verify } from 'hono/jwt';
+
 class AuthService {
-  generateTokens(userId: string): {
+  async generateTokens(userId: string, secret: string): Promise<{
     accessToken: string;
     refreshToken: string;
-  } {
-    const accessToken = jwt.sign(
-      { userId, type: 'access' },
-      process.env.JWT_SECRET!,
-      { expiresIn: '15m' }
+  }> {
+    const accessToken = await sign(
+      { 
+        userId, 
+        type: 'access',
+        exp: Math.floor(Date.now() / 1000) + 60 * 15 // 15分
+      },
+      secret
     );
     
-    const refreshToken = jwt.sign(
-      { userId, type: 'refresh' },
-      process.env.REFRESH_SECRET!,
-      { expiresIn: '7d' }
+    const refreshToken = await sign(
+      { 
+        userId, 
+        type: 'refresh',
+        exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7 // 7日
+      },
+      secret
     );
     
     return { accessToken, refreshToken };
   }
   
-  async validateAudioFileUpload(file: Express.Multer.File): Promise<boolean> {
+  async validateAudioFileUpload(file: File): Promise<boolean> {
     // ファイル拡張子チェック
-    const allowedExtensions = ['.mp3', '.wav', '.ogg', '.m4a'];
-    const fileExtension = path.extname(file.originalname).toLowerCase();
+    const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4'];
     
-    if (!allowedExtensions.includes(fileExtension)) {
+    if (!allowedTypes.includes(file.type)) {
       throw new Error('Unsupported file format');
     }
     
@@ -515,18 +954,12 @@ class AuthService {
       throw new Error('File too large');
     }
     
-    // MIMEタイプ検証
-    const validMimeTypes = ['audio/mpeg', 'audio/wav', 'audio/ogg'];
-    if (!validMimeTypes.includes(file.mimetype)) {
-      throw new Error('Invalid MIME type');
-    }
-    
     return true;
   }
 }
 ```
 
-### 5.2 レート制限
+### 5.2 レート制限（Redis活用）
 ```typescript
 // Redisベースレート制限
 class RateLimiter {
@@ -560,7 +993,7 @@ class RateLimiter {
 
 ## 6. 監視・ロギング
 
-### 6.1 アプリケーション監視
+### 6.1 アプリケーション監視（Hono対応）
 ```typescript
 // Prometheus メトリクス
 import client from 'prom-client';
@@ -582,24 +1015,22 @@ const activePlayersGauge = new client.Gauge({
   help: 'Number of currently active audio players'
 });
 
-// 使用例
-app.use((req, res, next) => {
+// Honoミドルウェアとして実装
+app.use('*', async (c, next) => {
   const startTime = Date.now();
   
-  res.on('finish', () => {
-    const duration = (Date.now() - startTime) / 1000;
-    httpRequestDuration
-      .labels(req.method, req.route?.path || req.path, res.statusCode.toString())
-      .observe(duration);
-  });
+  await next();
   
-  next();
+  const duration = (Date.now() - startTime) / 1000;
+  httpRequestDuration
+    .labels(c.req.method, c.req.path, c.res.status.toString())
+    .observe(duration);
 });
 ```
 
 ### 6.2 ログ管理
 ```typescript
-// 構造化ログ
+// 構造化ログ（Hono対応）
 import winston from 'winston';
 
 const logger = winston.createLogger({
@@ -609,7 +1040,7 @@ const logger = winston.createLogger({
     winston.format.errors({ stack: true }),
     winston.format.json()
   ),
-  defaultMeta: { service: 'sketchtunes-api' },
+  defaultMeta: { service: 'sketchtunes-api-hono' },
   transports: [
     new winston.transports.File({ filename: 'error.log', level: 'error' }),
     new winston.transports.File({ filename: 'combined.log' }),
@@ -617,6 +1048,23 @@ const logger = winston.createLogger({
       format: winston.format.simple()
     })
   ]
+});
+
+// Honoログミドルウェア
+app.use('*', async (c, next) => {
+  const startTime = Date.now();
+  
+  await next();
+  
+  const duration = Date.now() - startTime;
+  logger.info('HTTP Request', {
+    method: c.req.method,
+    path: c.req.path,
+    status: c.res.status,
+    duration,
+    userAgent: c.req.header('User-Agent'),
+    ip: c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For')
+  });
 });
 
 // 使用例
@@ -716,36 +1164,34 @@ class AudioCDNOptimizer {
 
 ## 8. 開発・テスト戦略
 
-### 8.1 テスト戦略
+### 8.1 テスト戦略（Hono対応）
 ```typescript
-// ユニットテスト例（Jest + Testing Library）
-describe('AudioPlayer', () => {
-  let audioPlayer: WebAudioPlayer;
+// ユニットテスト例（Vitest + Hono）
+import { testClient } from 'hono/testing';
+import { describe, test, expect } from 'vitest';
+import app from '../src/app';
+
+describe('Audio API', () => {
+  const client = testClient(app);
   
-  beforeEach(() => {
-    // Web Audio APIのモック
-    global.AudioContext = jest.fn().mockImplementation(() => ({
-      createBufferSource: jest.fn(),
-      createGain: jest.fn(),
-      createAnalyser: jest.fn(),
-      decodeAudioData: jest.fn()
-    }));
+  test('should get tracks list', async () => {
+    const res = await client.api.tracks.$get();
+    expect(res.status).toBe(200);
     
-    audioPlayer = new WebAudioPlayer();
+    const data = await res.json();
+    expect(data).toHaveProperty('tracks');
+    expect(Array.isArray(data.tracks)).toBe(true);
   });
   
-  test('should load audio file successfully', async () => {
-    const mockAudioBuffer = new ArrayBuffer(1024);
-    await expect(audioPlayer.load('test-audio.mp3')).resolves.not.toThrow();
-  });
-  
-  test('should emit timeupdate events', (done) => {
-    audioPlayer.onTimeUpdate((time) => {
-      expect(typeof time).toBe('number');
-      done();
+  test('should require authentication for upload', async () => {
+    const formData = new FormData();
+    formData.append('title', 'Test Track');
+    
+    const res = await client.api.tracks.$post({
+      form: formData
     });
     
-    audioPlayer.play();
+    expect(res.status).toBe(401);
   });
 });
 
@@ -839,7 +1285,7 @@ cp .env.example .env.local
 # データベースマイグレーション
 npm run db:migrate
 
-# 開発サーバー起動
+# 開発サーバー起動（Hono）
 npm run dev
 ```
 
@@ -862,7 +1308,7 @@ COPY nginx.conf /etc/nginx/nginx.conf
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
 
-# API Dockerfile
+# API Dockerfile（Hono対応）
 FROM node:20-alpine
 
 WORKDIR /app
@@ -876,7 +1322,53 @@ EXPOSE 3000
 CMD ["npm", "start"]
 ```
 
-### 9.3 本番デプロイ手順
+### 9.3 package.json設定例
+```json
+{
+  "name": "sketchtunes-api",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage"
+  },
+  "dependencies": {
+    "hono": "^4.0.0",
+    "@hono/node-server": "^1.8.0",
+    "bcryptjs": "^2.4.3",
+    "@aws-sdk/client-s3": "^3.0.0",
+    "redis": "^4.6.0",
+    "pg": "^8.11.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0",
+    "@types/node": "^20.0.0"
+  }
+}
+```
+
+### 9.4 Hono エントリーポイント例
+```typescript
+// src/index.ts
+import { serve } from '@hono/node-server';
+import app from './app';
+
+const port = Number(process.env.PORT) || 3000;
+
+console.log(`🚀 Hono server running on port ${port}`);
+
+serve({
+  fetch: app.fetch,
+  port
+});
+```
+
+### 9.5 本番デプロイ手順
 ```bash
 # 1. ビルド
 npm run build
