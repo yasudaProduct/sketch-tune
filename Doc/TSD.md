@@ -13,7 +13,7 @@
                                         ├── User Service
                                         ├── Music Service  
                                         ├── Comment Service
-                                        ├── Notification Service
+                                        ├── Notification Service  
                                         └── Analytics Service
                          ↓
                     [データベース層]
@@ -1443,37 +1443,155 @@ SketchTunesプロジェクトでは、**pnpm workspaces**と**Turborepo**を使�
 ```
 sketch-tunes/
 ├── apps/                           # アプリケーション
-│   ├── web/                        # Next.js フロントエンド
+│   ├── web/                        # Next.js フロントエンド（クライアントサイドのみ）
 │   │   ├── src/
-│   │   │   ├── app/               # App Router
+│   │   │   ├── app/               # App Router（ページのみ）
+│   │   │   │   ├── (auth)/        # 認証関連ページ
+│   │   │   │   │   ├── login/
+│   │   │   │   │   └── register/
+│   │   │   │   ├── tracks/        # 楽曲関連ページ
+│   │   │   │   │   ├── page.tsx   # 楽曲一覧
+│   │   │   │   │   ├── [id]/      # 楽曲詳細
+│   │   │   │   │   └── upload/    # 楽曲アップロード
+│   │   │   │   ├── profile/       # プロフィールページ
+│   │   │   │   ├── layout.tsx     # ルートレイアウト
+│   │   │   │   ├── page.tsx       # ホームページ
+│   │   │   │   ├── loading.tsx    # ローディングUI
+│   │   │   │   └── error.tsx      # エラーUI
 │   │   │   ├── components/        # ページ固有コンポーネント
+│   │   │   │   ├── Header/
+│   │   │   │   ├── Sidebar/
+│   │   │   │   ├── TrackList/
+│   │   │   │   └── Player/
 │   │   │   ├── hooks/             # カスタムフック
-│   │   │   └── lib/               # アプリ固有ユーティリティ
+│   │   │   │   ├── useAuth.ts
+│   │   │   │   ├── usePlayer.ts
+│   │   │   │   └── useWebSocket.ts
+│   │   │   ├── lib/               # アプリ固有ユーティリティ
+│   │   │   │   ├── constants.ts
+│   │   │   │   ├── utils.ts
+│   │   │   │   └── validations.ts
+│   │   │   └── store/             # Zustand ストア
+│   │   │       ├── auth.ts
+│   │   │       ├── player.ts
+│   │   │       └── ui.ts
 │   │   ├── public/
 │   │   ├── package.json
 │   │   ├── next.config.js
 │   │   └── tailwind.config.js
 │   │
-│   ├── api/                        # Hono API サーバー
+│   ├── api/                        # Hono API サーバー（全API処理）
 │   │   ├── src/
 │   │   │   ├── routes/            # API ルート
+│   │   │   │   ├── auth/          # 認証API
+│   │   │   │   │   ├── index.ts   # /api/auth ルート
+│   │   │   │   │   ├── login.ts
+│   │   │   │   │   ├── register.ts
+│   │   │   │   │   ├── refresh.ts
+│   │   │   │   │   └── logout.ts
+│   │   │   │   ├── tracks/        # 楽曲API
+│   │   │   │   │   ├── index.ts   # /api/tracks ルート
+│   │   │   │   │   ├── upload.ts
+│   │   │   │   │   ├── stream.ts
+│   │   │   │   │   ├── search.ts
+│   │   │   │   │   └── [id]/
+│   │   │   │   │       ├── index.ts
+│   │   │   │   │       ├── comments.ts
+│   │   │   │   │       └── waveform.ts
+│   │   │   │   ├── users/         # ユーザーAPI
+│   │   │   │   │   ├── index.ts
+│   │   │   │   │   ├── profile.ts
+│   │   │   │   │   ├── follow.ts
+│   │   │   │   │   └── [id]/
+│   │   │   │   ├── comments/      # コメントAPI
+│   │   │   │   │   ├── index.ts
+│   │   │   │   │   ├── create.ts
+│   │   │   │   │   └── [id]/
+│   │   │   │   └── analytics/     # 分析API
+│   │   │   │       ├── index.ts
+│   │   │   │       ├── plays.ts
+│   │   │   │       └── trends.ts
 │   │   │   ├── middleware/        # ミドルウェア
+│   │   │   │   ├── auth.ts        # JWT認証
+│   │   │   │   ├── cors.ts        # CORS設定
+│   │   │   │   ├── rateLimit.ts   # レート制限
+│   │   │   │   ├── logger.ts      # ロギング
+│   │   │   │   ├── validation.ts  # リクエスト検証
+│   │   │   │   └── errorHandler.ts # エラーハンドリング
 │   │   │   ├── services/          # ビジネスロジック
+│   │   │   │   ├── auth/
+│   │   │   │   │   ├── AuthService.ts
+│   │   │   │   │   ├── TokenService.ts
+│   │   │   │   │   └── PasswordService.ts
+│   │   │   │   ├── tracks/
+│   │   │   │   │   ├── TrackService.ts
+│   │   │   │   │   ├── UploadService.ts
+│   │   │   │   │   ├── StreamingService.ts
+│   │   │   │   │   └── WaveformService.ts
+│   │   │   │   ├── users/
+│   │   │   │   │   ├── UserService.ts
+│   │   │   │   │   └── FollowService.ts
+│   │   │   │   ├── comments/
+│   │   │   │   │   └── CommentService.ts
+│   │   │   │   ├── notifications/
+│   │   │   │   │   └── NotificationService.ts
+│   │   │   │   └── storage/
+│   │   │   │       ├── S3Service.ts
+│   │   │   │       └── CDNService.ts
 │   │   │   ├── repositories/      # データアクセス層
+│   │   │   │   ├── UserRepository.ts
+│   │   │   │   ├── TrackRepository.ts
+│   │   │   │   ├── CommentRepository.ts
+│   │   │   │   ├── PlayHistoryRepository.ts
+│   │   │   │   └── FollowRepository.ts
+│   │   │   ├── websocket/         # WebSocket処理
+│   │   │   │   ├── handlers/
+│   │   │   │   │   ├── trackRoom.ts
+│   │   │   │   │   ├── comments.ts
+│   │   │   │   │   └── playback.ts
+│   │   │   │   ├── manager.ts
+│   │   │   │   └── types.ts
+│   │   │   ├── types/             # API型定義
+│   │   │   │   ├── api.ts
+│   │   │   │   ├── auth.ts
+│   │   │   │   ├── tracks.ts
+│   │   │   │   └── websocket.ts
+│   │   │   ├── utils/             # ユーティリティ
+│   │   │   │   ├── validation.ts
+│   │   │   │   ├── encryption.ts
+│   │   │   │   ├── fileProcessing.ts
+│   │   │   │   └── cache.ts
+│   │   │   ├── app.ts             # Honoアプリケーション設定
 │   │   │   └── index.ts           # エントリーポイント
 │   │   ├── package.json
-│   │   └── tsconfig.json
+│   │   ├── tsconfig.json
+│   │   ├── Dockerfile
+│   │   └── wrangler.toml          # Cloudflare Workers設定
 │   │
 │   └── admin/                      # 管理画面 (将来拡張)
 │       ├── src/
+│       │   ├── app/               # Next.js Admin UI
+│       │   └── components/
 │       └── package.json
 │
 ├── packages/                       # 共有パッケージ
 │   ├── shared-types/               # 型定義
 │   │   ├── src/
-│   │   │   ├── api.ts             # API型定義
-│   │   │   ├── user.ts            # ユーザー型
-│   │   │   ├── track.ts           # 楽曲型
+│   │   │   ├── api/               # API型定義
+│   │   │   │   ├── auth.ts        # 認証API型
+│   │   │   │   ├── tracks.ts      # 楽曲API型
+│   │   │   │   ├── users.ts       # ユーザーAPI型
+│   │   │   │   ├── comments.ts    # コメントAPI型
+│   │   │   │   └── websocket.ts   # WebSocket型
+│   │   │   ├── entities/          # エンティティ型
+│   │   │   │   ├── user.ts
+│   │   │   │   ├── track.ts
+│   │   │   │   ├── comment.ts
+│   │   │   │   └── common.ts
+│   │   │   ├── dto/               # Data Transfer Object
+│   │   │   │   ├── auth.ts
+│   │   │   │   ├── tracks.ts
+│   │   │   │   └── users.ts
 │   │   │   └── index.ts
 │   │   ├── package.json
 │   │   └── tsconfig.json
@@ -1484,9 +1602,17 @@ sketch-tunes/
 │   │   │   │   ├── Button/
 │   │   │   │   ├── AudioPlayer/
 │   │   │   │   ├── WaveformVisualizer/
+│   │   │   │   ├── CommentSystem/
+│   │   │   │   ├── Modal/
+│   │   │   │   ├── Form/
 │   │   │   │   └── index.ts
 │   │   │   ├── hooks/             # 共有フック
+│   │   │   │   ├── useAudio.ts
+│   │   │   │   ├── useWebSocket.ts
+│   │   │   │   └── useFileUpload.ts
 │   │   │   └── utils/             # UI関連ユーティリティ
+│   │   │       ├── audio.ts
+│   │   │       └── waveform.ts
 │   │   ├── package.json
 │   │   ├── tsconfig.json
 │   │   └── tailwind.config.js
@@ -1495,37 +1621,89 @@ sketch-tunes/
 │   │   ├── src/
 │   │   │   ├── migrations/
 │   │   │   ├── schemas/
+│   │   │   │   ├── users.ts
+│   │   │   │   ├── tracks.ts
+│   │   │   │   ├── comments.ts
+│   │   │   │   └── relations.ts
 │   │   │   ├── seeds/
-│   │   │   └── client.ts
+│   │   │   ├── client.ts
+│   │   │   └── index.ts
 │   │   ├── package.json
 │   │   └── drizzle.config.ts
 │   │
 │   ├── audio-utils/                # 音楽処理ユーティリティ
 │   │   ├── src/
 │   │   │   ├── waveform/
+│   │   │   │   ├── generator.ts
+│   │   │   │   └── renderer.ts
 │   │   │   ├── processing/
+│   │   │   │   ├── metadata.ts
+│   │   │   │   ├── converter.ts
+│   │   │   │   └── validator.ts
 │   │   │   └── streaming/
+│   │   │       ├── optimizer.ts
+│   │   │       └── cdn.ts
 │   │   └── package.json
 │   │
-│   ├── api-client/                 # API クライアント
+│   ├── api-client/                 # Hono API クライアント
 │   │   ├── src/
-│   │   │   ├── client.ts
+│   │   │   ├── client.ts          # Hono RPCクライアント
 │   │   │   ├── hooks/             # React Query フック
-│   │   │   └── endpoints/
+│   │   │   │   ├── auth/
+│   │   │   │   │   ├── useLogin.ts
+│   │   │   │   │   ├── useRegister.ts
+│   │   │   │   │   └── useAuth.ts
+│   │   │   │   ├── tracks/
+│   │   │   │   │   ├── useTracks.ts
+│   │   │   │   │   ├── useUploadTrack.ts
+│   │   │   │   │   └── useTrackDetails.ts
+│   │   │   │   ├── users/
+│   │   │   │   │   ├── useProfile.ts
+│   │   │   │   │   └── useFollow.ts
+│   │   │   │   └── comments/
+│   │   │   │       ├── useComments.ts
+│   │   │   │       └── useCreateComment.ts
+│   │   │   ├── websocket/         # WebSocketクライアント
+│   │   │   │   ├── client.ts
+│   │   │   │   └── hooks/
+│   │   │   │       ├── useTrackRoom.ts
+│   │   │   │       └── useRealtime.ts
+│   │   │   └── utils/
+│   │   │       ├── queryClient.ts
+│   │   │       └── errorHandling.ts
 │   │   └── package.json
 │   │
 │   └── config/                     # 共有設定
 │       ├── eslint/                # ESLint設定
+│       │   ├── base.js
+│       │   ├── next.js
+│       │   └── node.js
 │       ├── typescript/            # TypeScript設定
+│       │   ├── base.json
+│       │   ├── nextjs.json
+│       │   └── node.json
 │       ├── tailwind/              # Tailwind設定
+│       │   ├── base.js
+│       │   └── components.js
 │       └── jest/                  # Jest設定
+│           ├── base.js
+│           └── react.js
 │
 ├── tools/                          # 開発ツール
 │   ├── scripts/                    # 開発スクリプト
+│   │   ├── dev-setup.sh
+│   │   ├── build-all.sh
+│   │   └── deploy.sh
 │   └── docker/                     # Docker設定
+│       ├── Dockerfile.web
+│       ├── Dockerfile.api
+│       └── nginx.conf
 │
 ├── docs/                           # ドキュメント
 │   ├── api/                        # API仕様書
+│   │   ├── auth.md
+│   │   ├── tracks.md
+│   │   └── websocket.md
 │   ├── components/                 # コンポーネント仕様
 │   └── deployment/                 # デプロイ手順
 │
@@ -1892,142 +2070,3 @@ EXPOSE 3000
 
 CMD ["pnpm", "run", "dev", "--filter=web"]
 ```
-
-### 12.7 CI/CD設定
-
-#### 12.7.1 GitHub Actions (モノリポ対応)
-```yaml
-# .github/workflows/ci.yml
-name: CI
-
-on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main]
-
-jobs:
-  changes:
-    runs-on: ubuntu-latest
-    outputs:
-      web: ${{ steps.changes.outputs.web }}
-      api: ${{ steps.changes.outputs.api }}
-      packages: ${{ steps.changes.outputs.packages }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v2
-        id: changes
-        with:
-          filters: |
-            web:
-              - 'apps/web/**'
-              - 'packages/**'
-            api:
-              - 'apps/api/**'
-              - 'packages/**'
-            packages:
-              - 'packages/**'
-
-  test:
-    needs: changes
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - uses: pnpm/action-setup@v2
-        with:
-          version: 8.10.0
-          
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-      
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      
-      - name: Type check
-        run: pnpm run type-check
-      
-      - name: Lint
-        run: pnpm run lint
-      
-      - name: Test
-        run: pnpm run test
-      
-      - name: Build
-        run: pnpm run build
-
-  deploy-web:
-    needs: [changes, test]
-    if: needs.changes.outputs.web == 'true' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy Frontend
-        run: echo "Deploy web app"
-
-  deploy-api:
-    needs: [changes, test]
-    if: needs.changes.outputs.api == 'true' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy API
-        run: echo "Deploy API"
-```
-
-### 12.8 開発者体験の向上
-
-#### 12.8.1 VS Code設定
-```json
-// .vscode/settings.json
-{
-  "typescript.preferences.includePackageJsonAutoImports": "on",
-  "typescript.suggest.autoImports": true,
-  "eslint.workingDirectories": [
-    "apps/web",
-    "apps/api",
-    "packages/*"
-  ],
-  "search.exclude": {
-    "**/node_modules": true,
-    "**/dist": true,
-    "**/.next": true
-  }
-}
-
-// .vscode/extensions.json
-{
-  "recommendations": [
-    "bradlc.vscode-tailwindcss",
-    "esbenp.prettier-vscode",
-    "dbaeumer.vscode-eslint",
-    "ms-vscode.vscode-typescript-next"
-  ]
-}
-```
-
-#### 12.8.2 共有ESLint設定
-```javascript
-// packages/config/eslint/base.js
-module.exports = {
-  extends: [
-    'eslint:recommended',
-    '@typescript-eslint/recommended',
-    'prettier'
-  ],
-  plugins: ['@typescript-eslint'],
-  parser: '@typescript-eslint/parser',
-  rules: {
-    '@typescript-eslint/no-unused-vars': 'error',
-    '@typescript-eslint/no-explicit-any': 'warn'
-  }
-};
-
-// apps/web/.eslintrc.js
-module.exports = {
-  extends: ['@sketchtunes/eslint-config/next'],
-  root: true
-};
-```
-
-この モノリポ構成により、効率的な開発環境と優れたDX（Developer Experience）を実現できます。
