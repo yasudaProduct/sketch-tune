@@ -5,6 +5,8 @@ import { PlayerProvider } from "@/contexts/PlayerContext";
 import { SideMenuProvider } from "@/contexts/SideMenuContext";
 import { Header } from "@/components/track/Header";
 import { SideMenu } from "@/components/navigation/SideMenu";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ToastProvider } from "@/contexts/ToastContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,25 +33,29 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <PlayerProvider>
-          <SideMenuProvider>
-            <div className="min-h-screen bg-gray-50">
-              {/* Header - 画面最上部に表示 */}
-              <Header />
+        <AuthProvider>
+          <ToastProvider>
+            <PlayerProvider>
+              <SideMenuProvider>
+                <div className="min-h-screen bg-gray-50">
+                  {/* Header - 画面最上部に表示 */}
+                  <Header />
 
-              {/* サイドメニューとメインコンテンツエリア */}
-              <div className="flex">
-                {/* サイドメニュー */}
-                <SideMenu />
+                  {/* サイドメニューとメインコンテンツエリア */}
+                  <div className="flex">
+                    {/* サイドメニュー */}
+                    <SideMenu />
 
-                {/* メインコンテンツ */}
-                <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                  {children}
-                </main>
-              </div>
-            </div>
-          </SideMenuProvider>
-        </PlayerProvider>
+                    {/* メインコンテンツ */}
+                    <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                      {children}
+                    </main>
+                  </div>
+                </div>
+              </SideMenuProvider>
+            </PlayerProvider>
+          </ToastProvider>
+        </AuthProvider>
       </body>
     </html>
   );
