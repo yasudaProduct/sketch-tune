@@ -2,7 +2,7 @@
 
 import React, { useEffect } from "react";
 import { useSideMenu } from "@/contexts/SideMenuContext";
-import { X, Home, Music, Heart, Settings, User } from "lucide-react";
+import { X, Home, Music, Heart, Settings, User, Upload } from "lucide-react";
 import Link from "next/link";
 
 interface MenuItem {
@@ -18,9 +18,9 @@ const menuItems: MenuItem[] = [
     href: "/",
   },
   {
-    icon: <Music className="h-5 w-5" />,
-    label: "楽曲",
-    href: "/tracks",
+    icon: <Upload className="h-5 w-5" />,
+    label: "アップロード",
+    href: "/upload",
   },
   {
     icon: <Heart className="h-5 w-5" />,
