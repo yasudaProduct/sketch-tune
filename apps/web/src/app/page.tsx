@@ -1,11 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  TrackCard,
-  TrackData,
-  sampleTracks,
-} from "@/components/track/TrackCard";
+import { TrackCard, TrackData } from "@/components/track/TrackCard";
+import { tracks as tracksClient, TracksResType } from "@/lib/hono-client";
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
@@ -14,13 +11,18 @@ export default function Home() {
   const currentUser = true; // session?.user;
 
   useEffect(() => {
-    // Simulate loading data from an API
     const fetchTracks = async () => {
       setIsLoading(true);
       try {
-        // Simulate API delay
-        await new Promise((resolve) => setTimeout(resolve, 800));
-        setTracks(sampleTracks);
+        // APIからトラックデータを取得
+        const res = await tracksClient();
+
+        if (res.ok) {
+          const data: TracksResType = await res.json();
+          setTracks(data.tracks);
+        } else {
+          console.error("Failed to fetch tracks:", res.status);
+        }
       } catch (error) {
         console.error("Error fetching tracks:", error);
       } finally {
