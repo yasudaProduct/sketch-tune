@@ -11,6 +11,7 @@
   "dependencies": {
     "@auth/drizzle-adapter": "^1.9.1",
     "@hono/zod-validator": "^0.7.0",
+    "@neondatabase/serverless": "^1.0.1",
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-slot": "^1.2.3",
     "@t3-oss/env-nextjs": "^0.13.6",
@@ -21,6 +22,7 @@
     "lucide-react": "^0.513.0",
     "next": "15.3.3",
     "next-auth": "^5.0.0-beta.28",
+    "postgres": "^3.4.7",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.6.1",
@@ -31,6 +33,7 @@
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.15.4",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "drizzle-kit": "^0.31.1",
