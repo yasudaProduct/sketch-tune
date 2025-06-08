@@ -77,6 +77,12 @@ bun install
 npm install
 ```
 
+### マイグレーション
+```bash
+bunx drizzle-kit generate
+bunx drizzle-kit migrate
+```
+
 ### 開発サーバーの起動
 
 ```bash

@@ -6,6 +6,7 @@ import { db } from "@/lib/db/drizzle";
 import { accounts, sessions, users, verificationTokens } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { env } from "../../../env";
+import bcrypt from "bcryptjs";
 
 // 認証APIのベースパス
 export const BASE_PATH = "/api/auth";
@@ -41,7 +42,6 @@ const authOptions: NextAuthConfig = {
         }),
         Credentials({
             name: "Credentials",
-            // 認証フォームのフィールド
             credentials: {
                 email: { label: "メールアドレス", type: "email", placeholder: "test@example.com" },
                 password: { label: "パスワード", type: "password" },
@@ -87,7 +87,19 @@ const authOptions: NextAuthConfig = {
                     where: eq(users.email, credentials.email),
                 })
 
+                if (!user?.hashedPassword) {
+                    throw new Error('User has no password')
+                }
+
                 // パスワードの検証
+                const isCorrectPassword = await bcrypt.compare(
+                    credentials.password,
+                    user.hashedPassword,
+                )
+
+                if (!isCorrectPassword) {
+                    throw new Error('Incorrect password')
+                }
 
                 // ユーザー情報の返却
                 return user

@@ -28,7 +28,12 @@ export const users = pgTable("user", {
     name: text("name"),
     email: text("email").unique(),
     emailVerified: timestamp("emailVerified", { mode: "date" }),
+    hashedPassword: text('hashedPassword'),
     image: text("image"),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at')
+        .defaultNow()
+        .$onUpdate(() => new Date()),
 })
 
 export const accounts = pgTable(

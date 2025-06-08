@@ -40,7 +40,6 @@ export const Header = () => {
             </Link>
           </div>
 
-          {/* 右端のユーザー情報・ログイン */}
           <div className="flex items-center space-x-4">
             {session && session.user ? (
               <div className="flex items-center space-x-3">
@@ -83,7 +82,7 @@ export const Header = () => {
                     <span className="ml-2">ログイン</span>
                   </Button>
                 </Link>
-                <Link href="/api/auth/signup">
+                <Link href="/signup">
                   <Button
                     size="sm"
                     className="bg-indigo-600 hover:bg-indigo-700 text-white"
