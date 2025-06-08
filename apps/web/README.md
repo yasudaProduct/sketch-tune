@@ -1,36 +1,130 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SketchTunes
 
-## Getting Started
+音楽制作者向けのスケッチ・デモ共有プラットフォーム
 
-First, run the development server:
+## 概要
 
+SketchTunesは、音楽制作過程の楽曲（スケッチ、デモ、ワークインプログレス）を共有し、<br>
+コミュニティからフィードバックを受け取ることができるWebアプリケーションです。<br>
+楽曲アップロードの敷居を下げることでDTM初心者のモチベーション持続を狙います。<br>
+制作段階の楽曲に対してタイムスタンプコメントを付けることで、具体的で建設的なフィードバックを可能にします。<br>
+
+## 主な機能
+
+### 🎵 楽曲管理
+- 楽曲のアップロード・ストリーミング再生
+- 制作段階別の楽曲分類（スケッチ・デモ・ワークインプログレス）
+- DAW、プラグイン、使用楽器情報の管理
+- ジャンル分類とタグ機能
+
+### 🎧 音楽プレイヤー
+- 波形ビジュアライザー表示
+- シーク機能・音量調整
+- レスポンシブデザイン対応
+
+### 💬 コミュニティ機能
+- タイムスタンプベースのコメント機能
+- 楽曲へのいいね・再生数トラッキング
+- ユーザープロフィール・アバター表示
+
+## 技術スタック
+
+### フロントエンド
+- **Next.js 15**
+- **React 19**
+- **TypeScript**
+- **Tailwind CSS 4**
+
+### バックエンド
+- **Hono**
+- **Drizzle ORM**
+- **Auth.js**
+
+### 開発ツール
+- **ESLint**
+- **Turbopack**
+- **Bun**
+
+## 開発環境のセットアップ
+
+### 必要な環境
+- Node.js 18+ または Bun
+- npm/yarn/bun
+
+### .env
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cd ./apps/web
+touch .env
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+```.env
+# Auth.js
+AUTH_SECRET="8iuUAndNm2JXZ36WCvThdq+9mmu3JM1MJE40sETLcC8="
+NEXTAUTH_URL=http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+# Auth Github
+GITHUB_ID=Ov23li1zYDvNFVtsmsnK
+GITHUB_SECRET=548dfe5d1491d914d5ffbfef7e648e5299226aa8
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### インストール
 
-## Learn More
+```bash
+# 依存関係のインストール
+bun install
 
-To learn more about Next.js, take a look at the following resources:
+# または
+npm install
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 開発サーバーの起動
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+# 開発サーバー（Turbopack使用）
+bun dev
 
-## Deploy on Vercel
+# または
+npm run dev
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+http://localhost:3000 でアプリケーションにアクセスできます。
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### その他のコマンド
+
+```bash
+# プロダクションビルド
+bun run build
+
+# プロダクションサーバー起動
+bun start
+
+# ESLint実行
+bun run lint
+```
+
+## プロジェクト構造
+```
+src/
+├── app/
+│ ├── api/ # APIルート（Hono）
+│ ├── track/ # 楽曲詳細ページ
+│ ├── upload/ # アップロードページ
+│ └── page.tsx # ホームページ
+├── components/
+│ ├── audio/ # 音楽プレイヤー関連
+│ ├── navigation/ # ナビゲーション
+│ ├── track/ # 楽曲表示関連
+│ └── ui/ # 汎用UIコンポーネント(shadcn/ui)
+├── contexts/
+│ ├── PlayerContext.tsx
+│ ├── SideMenuContext.tsx
+│ └── ToastContext.tsx
+├── lib/ # ライブラリ・ユーティリティ
+└── utils/ # ヘルパー関数
+```
+
+## API仕様
+
+### Tracks API
+
+🚧 **作成中**
