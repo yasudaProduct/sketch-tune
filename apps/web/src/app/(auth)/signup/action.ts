@@ -1,37 +1,36 @@
 'use server'
 
-import { db } from "@/lib/db/drizzle"
-import { eq } from "drizzle-orm"
-import { users } from "@/lib/db/schema"
-import bcrypt from "bcryptjs"
+import { users } from "@/lib/hono-client"
 
 export async function singUp(name: string, email: string, password: string) {
 
-    if (!email || !password) {
-        return { error: 'Email and password are required' }
-    }
-
-    const existingUser = await db.query.users.findFirst({
-        where: eq(users.email, email),
+    const res = await users.$post({
+        json: {
+            name: name,
+            email: email,
+            password: password,
+        }
     })
 
-    if (existingUser) {
+    if (res.status !== 200) {
+        const message = await res.json();
         return {
             isSuccess: false,
-            error: { message: 'User already exists' },
+            error: { message: message },
         }
     }
 
-    const hashedPassword = await bcrypt.hash(password, 12)
+    const res2 = await users[":email"].$get({ param: { email: email } });
 
-    const [newUser] = await db
-        .insert(users)
-        .values({
-            name: name,
-            email: email,
-            hashedPassword: hashedPassword,
-        })
-        .returning()
+    if (res2.status !== 200) {
+        const message = await res2.json();
+        return {
+            isSuccess: false,
+            error: { message: message },
+        }
+    }
+
+    const newUser = await res2.json();
 
     return {
         isSuccess: true,

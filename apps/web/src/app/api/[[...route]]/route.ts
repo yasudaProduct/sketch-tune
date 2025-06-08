@@ -2,12 +2,15 @@ import { Hono } from "hono";
 import { handle } from "hono/vercel";
 import { app as hello } from "./hello";
 import { app as tracks } from "./tracks";
+import { app as users } from "./user";
+
 // basePath は API ルートのベースパスを指定します
 // 以降、新たに生やす API ルートはこのパスを基準に追加されます
 const app = new Hono().basePath("/api");
 
 export const helloRoute = app.route("/hello", hello);
 export const tracksRoute = app.route("/tracks", tracks);
+export const usersRoute = app.route("/users", users);
 
 export type AppType = typeof app;
 
