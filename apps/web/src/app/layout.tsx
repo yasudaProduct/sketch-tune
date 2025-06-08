@@ -3,10 +3,10 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { PlayerProvider } from "@/contexts/PlayerContext";
 import { SideMenuProvider } from "@/contexts/SideMenuContext";
-import { Header } from "@/components/track/Header";
+import { Header } from "@/components/navigation/Header";
 import { SideMenu } from "@/components/navigation/SideMenu";
-import { AuthProvider } from "@/contexts/AuthContext";
 import { ToastProvider } from "@/contexts/ToastContext";
+import { SessionProvider } from "next-auth/react";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,20 +33,14 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <AuthProvider>
+        <SessionProvider>
           <ToastProvider>
             <PlayerProvider>
               <SideMenuProvider>
                 <div className="min-h-screen bg-gray-50">
-                  {/* Header - 画面最上部に表示 */}
                   <Header />
-
-                  {/* サイドメニューとメインコンテンツエリア */}
                   <div className="flex">
-                    {/* サイドメニュー */}
                     <SideMenu />
-
-                    {/* メインコンテンツ */}
                     <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
                       {children}
                     </main>
@@ -55,7 +49,7 @@ export default function RootLayout({
               </SideMenuProvider>
             </PlayerProvider>
           </ToastProvider>
-        </AuthProvider>
+        </SessionProvider>
       </body>
     </html>
   );

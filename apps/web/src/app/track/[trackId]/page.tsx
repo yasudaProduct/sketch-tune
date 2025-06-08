@@ -16,7 +16,7 @@ import {
 import { AudioPlayer } from "@/components/audio/AudioPlayer";
 import { CommentSection, Comment } from "@/components/track/CommentSection";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/contexts/AuthContext";
+import { useSession } from "next-auth/react";
 import { useToast } from "@/contexts/ToastContext";
 import { formatRelativeTime } from "@/utils/formaters";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -24,7 +24,7 @@ import { TrackData } from "@/components/track/TrackCard";
 
 export const TrackDetail: React.FC = () => {
   const { trackId } = useParams<{ trackId: string }>();
-  const { currentUser } = useAuth();
+  const { data: session } = useSession();
   const { addToast } = useToast();
 
   const [track, setTrack] = useState<TrackData | null>(null);
@@ -315,7 +315,7 @@ export const TrackDetail: React.FC = () => {
                 </button>
               </div>
 
-              {track.artist.id === currentUser?.id && (
+              {track.artist.id === session?.user?.id && (
                 <div className="flex justify-end space-x-2 mb-4">
                   <Button
                     variant="outline"
@@ -357,7 +357,7 @@ export const TrackDetail: React.FC = () => {
             <CommentSection
               trackId={track.id}
               comments={comments}
-              currentUserId={currentUser?.id}
+              currentUserId={session?.user?.id}
               currentTime={currentTime}
               onAddComment={handleAddComment}
             />

@@ -3,14 +3,14 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Upload as UploadIcon, Music, Clock, Tag, PenTool } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useSession } from "next-auth/react";
 import { useToast } from "@/contexts/ToastContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
 
 export const Upload: React.FC = () => {
-  const { currentUser } = useAuth();
+  const { data: session } = useSession();
   const { addToast } = useToast();
   const router = useRouter();
 
@@ -127,7 +127,7 @@ export const Upload: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!currentUser) {
+    if (!session) {
       addToast("You must be logged in to upload tracks", "error");
       router.push("/login");
       return;

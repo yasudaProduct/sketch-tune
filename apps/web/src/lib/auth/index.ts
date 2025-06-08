@@ -15,8 +15,8 @@ const authOptions: NextAuthConfig = {
             name: "Credentials",
             // 認証フォームのフィールド
             credentials: {
-                username: { label: "Username", type: "text", placeholder: "jsmith" },
-                password: { label: "Password", type: "password" },
+                email: { label: "メールアドレス", type: "text", placeholder: "test@example.com" },
+                password: { label: "パスワード", type: "password" },
             },
             // 認証処理
             async authorize(credentials): Promise<User | null> {
@@ -40,7 +40,7 @@ const authOptions: NextAuthConfig = {
                 // ユーザー情報の検索
                 const user = users.find(
                     (user) =>
-                        user.userName === credentials.username &&
+                        user.email === credentials.email &&
                         user.password === credentials.password
                 );
                 // ユーザー情報の返却
