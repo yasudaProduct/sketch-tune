@@ -58,13 +58,19 @@ touch .env
 ```
 
 ```.env
+# Node.js
+NODE_ENV=development
+
 # Auth.js
-AUTH_SECRET="8iuUAndNm2JXZ36WCvThdq+9mmu3JM1MJE40sETLcC8="
+AUTH_SECRET=
 NEXTAUTH_URL=http://localhost:3000
 
 # Auth Github
-GITHUB_ID=Ov23li1zYDvNFVtsmsnK
-GITHUB_SECRET=548dfe5d1491d914d5ffbfef7e648e5299226aa8
+GITHUB_ID=
+GITHUB_SECRET=
+
+# DB
+AUTH_DRIZZLE_URL=postgresql://postgres:postgres@localhost:5432/postgres
 ```
 
 ### インストール

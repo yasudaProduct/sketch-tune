@@ -20,6 +20,7 @@ const authOptions: NextAuthConfig = {
     }),
     callbacks: {
         async signIn({ user, account }) {
+            console.log('callback signIn')
             if (account?.provider === 'github') return true // いる？
 
             if (account?.provider !== 'credentials') return false // いる？
@@ -72,6 +73,7 @@ const authOptions: NextAuthConfig = {
                 //         user.email === credentials.email &&
                 //         user.password === credentials.password
                 // );
+                console.log('callback authorize')
 
                 if (
                     !(

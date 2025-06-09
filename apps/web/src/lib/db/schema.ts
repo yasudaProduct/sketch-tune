@@ -6,16 +6,17 @@ import {
     primaryKey,
     integer,
 } from "drizzle-orm/pg-core"
-// import postgres from "postgres"
-// import { drizzle } from "drizzle-orm/postgres-js"
+import postgres from "postgres"
+import { drizzle } from "drizzle-orm/postgres-js"
 import { drizzle as drizzleNeon } from 'drizzle-orm/neon-http';
 import type { AdapterAccountType } from "next-auth/adapters"
 import { env } from "../../../env"
 import { neon } from "@neondatabase/serverless"
 
-const sql = neon(env.AUTH_DRIZZLE_URL)
-export const db = drizzleNeon(sql)
-
+export const db =
+    env.NODE_ENV === "development"
+        ? drizzle(postgres(env.AUTH_DRIZZLE_URL, { max: 1 }))
+        : drizzleNeon(neon(env.AUTH_DRIZZLE_URL))
 
 // const connectionString = env.AUTH_DRIZZLE_URL
 // const pool = postgres(connectionString, { max: 1 })
