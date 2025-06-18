@@ -4,6 +4,7 @@ import { Play, MessageSquare, Heart, Clock } from "lucide-react";
 import { formatRelativeTime } from "@/utils/formaters";
 // import { usePlayer } from "@/contexts/PlayerContext";
 import { cn } from "@/utils/cn";
+import Image from "next/image";
 
 export interface TrackData {
   id: string;
@@ -70,7 +71,7 @@ export const TrackCard: React.FC<TrackCardProps> = ({
           onClick={handlePlayToggle}
         >
           {track.coverImage ? (
-            <img
+            <Image
               src={track.coverImage}
               alt={track.title}
               className="w-full h-full object-cover"
@@ -88,14 +89,12 @@ export const TrackCard: React.FC<TrackCardProps> = ({
         </div>
 
         <div className="min-w-0 flex-1">
-          {/* <Link to={`/track/${track.id}`} className="block">
-            <h4 className="text-sm font-medium text-gray-900 truncate">
-              {track.title}
-            </h4>
-            <p className="text-xs text-gray-500 truncate">
-              {track.artist.name}
-            </p>
-          </Link> */}
+          {/* <Link to={`/track/${track.id}`} className="block"> */}
+          <h4 className="text-sm font-medium text-gray-900 truncate">
+            {track.title}TEST
+          </h4>
+          <p className="text-xs text-gray-500 truncate">{track.artist.name}</p>
+          {/* </Link> */}
         </div>
 
         <div className="ml-2 flex items-center text-xs text-gray-500">
@@ -116,7 +115,7 @@ export const TrackCard: React.FC<TrackCardProps> = ({
       <div className="relative">
         <div className="pt-[56.25%] bg-gray-100 relative">
           {track.coverImage ? (
-            <img
+            <Image
               src={track.coverImage}
               alt={track.title}
               className="absolute inset-0 w-full h-full object-cover"
@@ -150,17 +149,17 @@ export const TrackCard: React.FC<TrackCardProps> = ({
       <div className="p-4">
         <div className="flex items-start justify-between mb-2">
           <div>
-            {/* <Link to={`/track/${track.id}`} className="block">
-              <h3 className="text-lg font-medium text-gray-900 hover:text-indigo-600 transition-colors">
-                {track.title}
-              </h3>
-            </Link>
-            <Link
+            {/* <Link to={`/track/${track.id}`} className="block"> */}
+            <h3 className="text-lg font-medium text-gray-900 hover:text-indigo-600 transition-colors">
+              {track.title}
+            </h3>
+            {/* </Link> */}
+            {/* <Link
               to={`/profile/${track.artist.id}`}
               className="text-sm text-gray-600 hover:text-indigo-600 transition-colors"
-            >
-              {track.artist.name}
-            </Link> */}
+            > */}
+            {track.artist.name}
+            {/* </Link> */}
           </div>
 
           <div className="flex flex-col items-end">
